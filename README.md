@@ -8,7 +8,7 @@ Powered by the original sprite work and sound assets from **[@precidoboss](https
 
 ## 🎮 Play Online
 
-Once deployed on **GitHub Pages**, open `https://precidoboss.github.io/JOHNSHOOTINGGAME/` directly in your browser.
+Once deployed on **GitHub Pages**, open `https://precidoboss.github.io/bestgame/` directly in your browser.
 
 ---
 
