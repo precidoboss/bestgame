@@ -1,67 +1,89 @@
-# John: Rogue Commando 💥
+# John: Rogue Commando 💥 (Open-World Cyber Edition)
 
-An adrenaline-pumping, retro arcade side-scrolling shooter built with HTML5 Canvas, JavaScript, and Web Audio API.
+An adrenaline-pumping, open-world 2D retro action shooter built with HTML5 Canvas, JavaScript, and Web Audio API.
 
-Powered by the original sprite work and sound assets from **[@precidoboss](https://github.com/precidoboss)**!
+Powered by original character sprites, ambient art, and soundtrack from **[@precidoboss](https://github.com/precidoboss)**!
 
 ---
 
 ## 🎮 Play Online
 
-Once deployed on **GitHub Pages**, open `https://precidoboss.github.io/bestgame/` directly in your browser.
+Once deployed on **GitHub Pages**, play instantly in any modern browser:
+👉 **`https://precidoboss.github.io/bestgame/`**
 
 ---
 
-## 🕹️ Controls
+## 🗺️ Open-World Biomes & Zones
 
-| Action | Keyboard | Touch / Mobile |
+Explore an expansive 3,800px wide seamless world with dynamic parallax layers, elevated platforms, and hidden supply caches:
+
+1. **Zone 1: Delta Outpost (Safe Haven)**:
+   * Starting command hub, target training ranges, comms relay, and Checkpoint Alpha.
+2. **Zone 2: Toxic Jungle & Overgrown Canopy**:
+   * Massive bio-trees, swaying mossy platforms, and toxic spore clouds.
+   * Host to feral **Bio-Mutant Arachnids** that scuttle and leap at intruders.
+3. **Zone 3: Subterranean Crystal Caverns**:
+   * Floating crystal platforms, cavernous rock ceilings, and heavy defense bunkers.
+   * Patrolled by armored **Cyborg Heavy Troopers** and aerial **Gunship Drones**.
+4. **Zone 4: The Apex Cyber-Citadel**:
+   * High-tech fortress protected by long-range **Citadel Beam Snipers** and energy barriers.
+   * The inner sanctum of the **Apex Cyber-Colossus** Titan Boss!
+
+---
+
+## 🕹️ Controls Quick Reference
+
+| Action | Keyboard | Mobile / Touch |
 | :--- | :--- | :--- |
 | **Move Left / Right** | `A` / `D` or `ArrowLeft` / `ArrowRight` | Left / Right D-Pad Buttons |
 | **Jump** | `W` / `ArrowUp` / `Space` | Green Jump Button (▲) |
 | **Crouch** | `S` / `ArrowDown` | Down D-Pad Button (▼) |
+| **Tactical Dash / Dodge** | `Shift` (Left or Right) | Purple Dash Button (⚡) |
 | **Shoot** | `J` / `Z` / `F` or **Left Mouse Click** | Red Fire Button (💥) |
 | **Reload** | `R` | Orange Reload Button (⟳) |
-| **Toggle Sound** | Sound Button (HUD) | Sound Button |
-| **Toggle CRT Scanlines** | CRT Button (HUD) | CRT Button |
-| **Fullscreen** | Fullscreen Button (HUD) | Fullscreen Button |
+| **Switch Weapon** | `Q` / `E` or `1`, `2`, `3`, `4` | Blue Switch Button (⇄) |
+| **Open Menu / Pause** | `M` / `ESC` | Top Bar / Touch Menu |
 
 ---
 
-## ✨ Features
+## ⚙️ Cyber-Armory & Weapons Arsenal
 
-- **Dynamic Character Animation**: Complete sprite-sheet animations for John (Idle, Running, Running while Shooting, Jumping, Crouching, Crouching while Shooting, Standing Fire, and Soul Ascent on death).
-- **Parallax Environments**: Multi-layered backgrounds with cave formations, drifting clouds, jungle canopies, and platforms.
-- **Weapon System**:
-  - 30-round automatic rifle with muzzle flashes and ejected brass shell casings.
-  - Tactical reload mechanism with reload audio cues.
-  - Screen shake and spark physics on every shot.
-- **Powerups**:
-  - 💚 **Medkit (+35 HP)**
-  - 💙 **Ammo Crate (Instant Max Ammo)**
-  - ⚡ **Triple-Spread Cannon (12s of 3-way spread devastation)**
-- **Enemy Roster**:
-  1. **Mutant Crawlers**: Fast ground beasts that scuttle and leap.
-  2. **Cyborg Troopers**: Heavy rifle soldiers who advance and return fire.
-  3. **Recon Drones**: Aerial flying drones that track and bombard John with plasma bolts.
-  4. **Wave 5 Mech Boss**: The Cyber-Colossus with multi-directional missile barrages, massive health bar, and epic boss battle music (`snd_boss_music.ogg`)!
-- **CRT Simulation**: Built-in toggleable CRT scanline and retro arcade cabinet filter.
-- **Mobile Friendly**: Integrated virtual on-screen touch D-Pad and action buttons for phones and tablets.
-- **Audio System**: Dual audio engine combining original `.ogg` sound effects and Web Audio API synthesizers for zero-latency instant response.
+Collect **Cyber-Scrap (`⚙️`)** from fallen enemies and supply crates to unlock and upgrade your weapons:
+
+* **Viper Assault Rifle**: Fast-firing, dependable automatic weapon.
+* **Hydra Plasma Shotgun**: 5-pellet burst that tears through close-range bio-swarms.
+* **Zeus Pierce Railgun**: Piercing lightning beam cutting through multiple enemy ranks simultaneously.
+* **Titan Rocket Launcher**: Long-range explosive ordnance dealing massive area-of-effect shockwaves.
+
+---
+
+## 👾 Advanced Enemy Roster & AI
+
+* **Bio-Mutant Stalkers**: Fast-moving arachnids with animated multi-jointed legs and leap attacks.
+* **Cyborg Heavy Troopers**: Front-line soldiers that advance, aim laser-guided rifles, and fire 3-round lethal bursts.
+* **Aerial Recon Gunships**: Hovering drones with twin spinning rotor blades and homing plasma bolts.
+* **Citadel Beam Snipers**: Stationary marksmen that project a warning laser beam before unleashing high-damage rail slugs.
+* **The Apex Cyber-Colossus (World Boss)**: Multi-phased mechanical behemoth with 1,800 HP, rotating arm cannons, missile barrages, and dynamic boss battle music (`snd_boss_music.ogg`)!
+
+---
+
+## 🛡️ Combat Systems & Features
+
+- **Regenerating Energy Shield**: Absorbs heavy hits and regenerates to full strength after 4 seconds of cover.
+- **Interactive Minimap & Scanner**: Real-time radar in the HUD showing player position, hostile blips, boss skulls, and fast travel checkpoints.
+- **Fast Travel Network**: Discover and activate holographic beacons across the map to fast travel across biomes instantly.
+- **CRT Simulation**: Built-in toggleable CRT scanlines and retro arcade monitor aesthetics.
+- **Full Persistence**: Scrap currency, discovered zones, unlocked weapons, and high scores automatically save to `localStorage`.
 
 ---
 
 ## 🚀 Running Locally
 
-You can run the game directly with any local static HTTP server:
-
 ```bash
-# Using Node.js
+cd /Users/user/.gemini/antigravity/scratch/shooter-game
 npx serve .
-
-# Or using Python
-python3 -m http.server 8000
 ```
-Then visit `http://localhost:8000` in your web browser.
+Then visit `http://localhost:3000` in your browser!
 
 ---
 
