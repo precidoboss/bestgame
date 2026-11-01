@@ -1,13 +1,12 @@
 // =========================================================================
-// JOHN: ROGUE COMMANDO - FULLSCREEN OPEN WORLD CYBER SHOOTER
-// Dynamic Viewport, True Edge-to-Edge Fullscreen, Space Shooting, Sprites & AI
+// JOHN: ROGUE COMMANDO - FULLSCREEN OPEN WORLD & ENDLESS SURVIVAL
+// Enhanced Enemy Visibility, Perfect Ground Checkpoints, Horde Mode, Space Shooting
 // =========================================================================
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-// Dynamic Fullscreen Canvas Resize
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -167,7 +166,7 @@ function playSynth(type) {
 }
 
 // --------------------------------------------------
-// ASSET MANAGEMENT & SPRITES
+// ASSETS & SPRITES
 // --------------------------------------------------
 const assets = {};
 const assetSources = {
@@ -189,7 +188,7 @@ const assetSources = {
   titleLogo: "main_title_title.png",
   gameOverBanner: "GameOverScreen.png",
 
-  // Additional Generated Assets
+  // Generated Enemy & Item Sprites
   bossMech: "boss_mech.png",
   enemyTrooper: "enemy_trooper.png",
   enemyArachnid: "enemy_arachnid.png",
@@ -206,16 +205,24 @@ for (const [key, src] of Object.entries(assetSources)) {
 }
 
 // --------------------------------------------------
-// GAME STATE & PERSISTENCE
+// GAME STATE & MODES
 // --------------------------------------------------
 let gameState = "MAIN_MENU"; // MAIN_MENU, PLAYING, ARMORY, WORLD_MAP, LORE, SETTINGS, PAUSED, GAMEOVER, VICTORY
-let previousState = "MAIN_MENU";
+let currentGameMode = "OPEN_WORLD"; // "OPEN_WORLD" or "SURVIVAL"
 
+// Persistence
 let scrap = parseInt(localStorage.getItem("john_scrap") || "120");
 let highScore = parseInt(localStorage.getItem("john_highscore") || "0");
+let survivalHighScore = parseInt(localStorage.getItem("john_survival_high_wave") || "0");
 let discoveredZones = JSON.parse(localStorage.getItem("john_discovered_zones") || '["Delta Outpost"]');
 let currentZoneName = "Delta Outpost";
 let zoneBannerTimer = 0;
+
+// Survival Horde Mode Variables
+let survivalWave = 1;
+let survivalEnemiesRemaining = 0;
+let survivalWaveTimer = 0;
+let survivalScore = 0;
 
 // Weapons
 const weapons = {
@@ -271,10 +278,11 @@ const weapons = {
 let currentWeaponKey = "rifle";
 
 // --------------------------------------------------
-// OPEN WORLD CONSTANTS & CAMERA
+// WORLD CONSTANTS & CHECKPOINTS (PROPERLY PLACED ON FLOOR)
 // --------------------------------------------------
 const WORLD_WIDTH = 4200;
 const WORLD_HEIGHT = 800;
+const FLOOR_Y = 640; // Exact solid ground level
 
 const camera = {
   x: 0,
@@ -284,10 +292,8 @@ const camera = {
   shake: 0
 };
 
-// Initial resize call
 resizeCanvas();
 
-// Open-World Biomes
 const ZONES = [
   { name: "Delta Outpost (Safe Zone)", startX: 0, endX: 950, color: "#161b22" },
   { name: "Toxic Jungle & Overgrown Canopy", startX: 950, endX: 2000, color: "#0d2818" },
@@ -295,54 +301,51 @@ const ZONES = [
   { name: "The Cyber-Citadel (Boss Arena)", startX: 3050, endX: 4200, color: "#2d0a0a" }
 ];
 
-// Fast Travel Checkpoints
+// Checkpoints sit solidly on the ground at FLOOR_Y (y: 640)
 const checkpoints = [
-  { id: "cp1", name: "Outpost Command Hub", x: 140, y: 580, active: true, zone: "Delta Outpost" },
-  { id: "cp2", name: "Jungle Ruins Outpost", x: 1200, y: 580, active: false, zone: "Toxic Jungle" },
-  { id: "cp3", name: "Crystal Mine Elevator", x: 2250, y: 580, active: false, zone: "Crystal Vaults" },
-  { id: "cp4", name: "Citadel Front Gate", x: 3150, y: 580, active: false, zone: "The Cyber-Citadel" }
+  { id: "cp1", name: "Outpost Command Hub", x: 260, y: FLOOR_Y, active: true, zone: "Delta Outpost" },
+  { id: "cp2", name: "Jungle Ruins Outpost", x: 1350, y: FLOOR_Y, active: false, zone: "Toxic Jungle" },
+  { id: "cp3", name: "Crystal Mine Elevator", x: 2350, y: FLOOR_Y, active: false, zone: "Crystal Vaults" },
+  { id: "cp4", name: "Citadel Front Gate", x: 3300, y: FLOOR_Y, active: false, zone: "The Cyber-Citadel" }
 ];
 
 let lastActiveCheckpoint = checkpoints[0];
 
-// Dynamic Platforms across World
+// Platforms
 const worldPlatforms = [
-  // Ground layers across entire map
-  { x: 0, y: 640, w: 1000, h: 160, type: "ground" },
-  { x: 1000, y: 640, w: 1100, h: 160, type: "ground" },
-  { x: 2100, y: 640, w: 1000, h: 160, type: "ground" },
-  { x: 3100, y: 640, w: 1100, h: 160, type: "ground" },
+  // Solid ground across the whole world
+  { x: 0, y: FLOOR_Y, w: 1050, h: 160, type: "ground" },
+  { x: 1050, y: FLOOR_Y, w: 1050, h: 160, type: "ground" },
+  { x: 2100, y: FLOOR_Y, w: 1050, h: 160, type: "ground" },
+  { x: 3150, y: FLOOR_Y, w: 1050, h: 160, type: "ground" },
 
-  // Zone 1 Platforms
-  { x: 220, y: 540, w: 180, h: 20 },
-  { x: 480, y: 460, w: 170, h: 20 },
-  { x: 740, y: 530, w: 150, h: 20 },
+  // Elevated walkways
+  { x: 240, y: 530, w: 180, h: 20 },
+  { x: 500, y: 440, w: 180, h: 20 },
+  { x: 760, y: 520, w: 160, h: 20 },
 
-  // Zone 2 Platforms (Jungle)
-  { x: 1020, y: 530, w: 160, h: 20 },
-  { x: 1260, y: 440, w: 220, h: 22 },
-  { x: 1580, y: 360, w: 200, h: 22 },
-  { x: 1840, y: 500, w: 150, h: 20 },
+  { x: 1040, y: 520, w: 160, h: 20 },
+  { x: 1280, y: 430, w: 220, h: 22 },
+  { x: 1600, y: 350, w: 200, h: 22 },
+  { x: 1860, y: 490, w: 160, h: 20 },
 
-  // Zone 3 Platforms (Crystal Caverns)
-  { x: 2180, y: 530, w: 180, h: 20 },
-  { x: 2420, y: 440, w: 190, h: 20 },
-  { x: 2680, y: 520, w: 160, h: 20 },
-  { x: 2900, y: 440, w: 160, h: 20 },
+  { x: 2200, y: 520, w: 180, h: 20 },
+  { x: 2450, y: 430, w: 190, h: 20 },
+  { x: 2720, y: 510, w: 160, h: 20 },
+  { x: 2940, y: 430, w: 160, h: 20 },
 
-  // Zone 4 Platforms (Citadel)
-  { x: 3200, y: 530, w: 190, h: 20 },
-  { x: 3480, y: 450, w: 240, h: 22 },
-  { x: 3800, y: 520, w: 190, h: 20 }
+  { x: 3220, y: 520, w: 190, h: 20 },
+  { x: 3500, y: 440, w: 240, h: 22 },
+  { x: 3820, y: 510, w: 190, h: 20 }
 ];
 
-// Open-World Supply Crates
+// Crates sitting on platforms/ground
 let lootCrates = [
-  { x: 340, y: 510, w: 32, h: 32, health: 30, opened: false, reward: "scrap", amount: 30 },
-  { x: 1350, y: 410, w: 32, h: 32, health: 30, opened: false, reward: "railgun_unlock", amount: 1 },
-  { x: 1700, y: 610, w: 32, h: 32, health: 30, opened: false, reward: "scrap", amount: 60 },
-  { x: 2500, y: 410, w: 32, h: 32, health: 30, opened: false, reward: "rocket_unlock", amount: 1 },
-  { x: 2950, y: 410, w: 32, h: 32, health: 30, opened: false, reward: "scrap", amount: 80 }
+  { x: 380, y: FLOOR_Y - 32, w: 32, h: 32, health: 30, opened: false, reward: "scrap", amount: 35 },
+  { x: 1380, y: 430 - 32, w: 32, h: 32, health: 30, opened: false, reward: "railgun_unlock", amount: 1 },
+  { x: 1720, y: FLOOR_Y - 32, w: 32, h: 32, health: 30, opened: false, reward: "scrap", amount: 60 },
+  { x: 2540, y: 430 - 32, w: 32, h: 32, health: 30, opened: false, reward: "rocket_unlock", amount: 1 },
+  { x: 2980, y: 430 - 32, w: 32, h: 32, health: 30, opened: false, reward: "scrap", amount: 80 }
 ];
 
 // --------------------------------------------------
@@ -350,7 +353,7 @@ let lootCrates = [
 // --------------------------------------------------
 const player = {
   x: 140,
-  y: 570,
+  y: FLOOR_Y - 48.4,
   vx: 0,
   vy: 0,
   width: 26 * 2.2,
@@ -361,34 +364,29 @@ const player = {
   grounded: false,
   crouched: false,
 
-  // Health & Shield
   health: 100,
   maxHealth: 100,
   shield: 50,
   maxShield: 50,
   shieldRegenTimer: 0,
 
-  // Tactical Dash
   dashCooldown: 0,
   dashCooldownMax: 1.5,
   isDashing: false,
   dashTimer: 0,
 
-  // Combat
   shootCooldown: 0,
   reloading: false,
   reloadTimer: 0,
   invulnerableTimer: 0,
   soulY: 0,
 
-  // Animation
   animState: "idle",
   frameIndex: 0,
   frameTimer: 0,
   frameSpeed: 0.08
 };
 
-// World Entities
 let bullets = [];
 let enemyBullets = [];
 let enemies = [];
@@ -397,7 +395,7 @@ let pickups = [];
 let floatingTexts = [];
 
 // --------------------------------------------------
-// INPUT CONTROLLER (SPACE FOR SHOOTING!)
+// INPUT CONTROLLER (SPACE TO SHOOT)
 // --------------------------------------------------
 const keys = {
   left: false,
@@ -417,7 +415,7 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
   }
 
-  // W or ArrowUp JUMPS!
+  // W / ArrowUp JUMPS!
   if (e.code === "KeyW" || e.code === "ArrowUp") {
     keys.up = true;
     e.preventDefault();
@@ -427,12 +425,11 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyD" || e.code === "ArrowRight") keys.right = true;
   if (e.code === "KeyS" || e.code === "ArrowDown") keys.down = true;
 
-  // Additional shoot bindings
   if (e.code === "KeyJ" || e.code === "KeyZ" || e.code === "KeyF") keys.shoot = true;
   if (e.code === "KeyR") keys.reload = true;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") triggerDash();
 
-  // Weapon Switch
+  // Switch weapons
   if (e.code === "KeyQ") switchWeapon(-1);
   if (e.code === "KeyE") switchWeapon(1);
   if (e.code === "Digit1") selectWeapon("rifle");
@@ -490,7 +487,6 @@ canvas.addEventListener("mouseup", (e) => {
   if (e.button === 0) keys.shoot = false;
 });
 
-// Setup Mobile Touch Controls
 function setupTouch(id, action) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -520,7 +516,6 @@ setupTouch("touchSwitch", "switch");
 setupTouch("touchShoot", "shoot");
 setupTouch("touchReload", "reload");
 
-// UI Button Handlers
 document.getElementById("btnSound").addEventListener("click", () => {
   soundEnabled = !soundEnabled;
   document.getElementById("btnSound").textContent = soundEnabled ? "🔊 Sound" : "🔇 Muted";
@@ -541,9 +536,6 @@ document.getElementById("btnFullscreen").addEventListener("click", () => {
   }
 });
 
-// --------------------------------------------------
-// WEAPON SWITCH & DASH
-// --------------------------------------------------
 function switchWeapon(direction) {
   const weaponKeys = Object.keys(weapons).filter(k => weapons[k].unlocked);
   let idx = weaponKeys.indexOf(currentWeaponKey);
@@ -583,7 +575,7 @@ function triggerDash() {
 }
 
 // --------------------------------------------------
-// SHOOTING ENGINE
+// SHOOTING & WEAPONS
 // --------------------------------------------------
 function shootWeapon() {
   const wp = weapons[currentWeaponKey];
@@ -601,7 +593,6 @@ function shootWeapon() {
   const gunY = player.crouched ? player.y + 28 : player.y + 22;
   const startX = player.x + (player.facing === 1 ? player.width : 0);
 
-  // Shell Ejection
   particles.push({
     x: player.x + player.width / 2,
     y: gunY,
@@ -618,7 +609,7 @@ function shootWeapon() {
     bullets.push({
       x: startX,
       y: gunY,
-      vx: player.facing * 15,
+      vx: player.facing * 16,
       vy: 0,
       damage: wp.damage,
       type: "rifle",
@@ -630,8 +621,8 @@ function shootWeapon() {
       bullets.push({
         x: startX,
         y: gunY,
-        vx: Math.cos(angle) * 14 * player.facing,
-        vy: Math.sin(angle) * 14,
+        vx: Math.cos(angle) * 15 * player.facing,
+        vy: Math.sin(angle) * 15,
         damage: wp.damage,
         type: "shotgun",
         color: "#f0883e",
@@ -642,7 +633,7 @@ function shootWeapon() {
     bullets.push({
       x: startX,
       y: gunY,
-      vx: player.facing * 24,
+      vx: player.facing * 25,
       vy: 0,
       damage: wp.damage,
       pierce: 4,
@@ -654,7 +645,7 @@ function shootWeapon() {
     bullets.push({
       x: startX,
       y: gunY,
-      vx: player.facing * 10,
+      vx: player.facing * 11,
       vy: 0,
       damage: wp.damage,
       isRocket: true,
@@ -675,66 +666,120 @@ function startReload() {
 }
 
 // --------------------------------------------------
-// ADVANCED ENEMIES
+// PROMINENT VISIBLE ENEMIES (IMMEDIATE COMBAT & PATROLS)
 // --------------------------------------------------
 function initWorldEnemies() {
+  if (currentGameMode === "SURVIVAL") {
+    startSurvivalMode();
+    return;
+  }
+
+  // Populate EVERY zone including starting zone right in front of the player!
   enemies = [
-    createEnemy("drone", 650, 420),
-    createEnemy("arachnid", 1250, 600),
-    createEnemy("arachnid", 1550, 600),
-    createEnemy("drone", 1450, 380),
-    createEnemy("arachnid", 1850, 600),
-    createEnemy("trooper", 2250, 590),
-    createEnemy("sniper", 2550, 400),
-    createEnemy("trooper", 2750, 590),
-    createEnemy("drone", 2850, 400),
-    createEnemy("trooper", 3250, 590),
-    createEnemy("sniper", 3550, 410),
-    createEnemy("boss", 3750, 460)
+    // Zone 1: Delta Outpost (Immediate action!)
+    createEnemy("trooper", 380, FLOOR_Y - 64),
+    createEnemy("drone", 540, 460),
+    createEnemy("trooper", 740, FLOOR_Y - 64),
+
+    // Zone 2: Toxic Jungle
+    createEnemy("arachnid", 1100, FLOOR_Y - 48),
+    createEnemy("drone", 1300, 420),
+    createEnemy("arachnid", 1520, FLOOR_Y - 48),
+    createEnemy("arachnid", 1780, FLOOR_Y - 48),
+    createEnemy("drone", 1920, 380),
+
+    // Zone 3: Crystal Vaults
+    createEnemy("trooper", 2180, FLOOR_Y - 64),
+    createEnemy("sniper", 2450, 430 - 60),
+    createEnemy("trooper", 2620, FLOOR_Y - 64),
+    createEnemy("drone", 2800, 420),
+    createEnemy("trooper", 2980, FLOOR_Y - 64),
+
+    // Zone 4: The Apex Citadel
+    createEnemy("trooper", 3240, FLOOR_Y - 64),
+    createEnemy("sniper", 3500, 440 - 60),
+    createEnemy("drone", 3660, 420),
+    createEnemy("boss", 3800, FLOOR_Y - 180)
   ];
+}
+
+function startSurvivalMode() {
+  survivalWave = 1;
+  survivalScore = 0;
+  survivalWaveTimer = 0;
+  player.x = 800;
+  player.y = FLOOR_Y - player.height;
+  player.vx = 0;
+  player.vy = 0;
+  spawnSurvivalWave();
+}
+
+function spawnSurvivalWave() {
+  enemies = [];
+  const count = 4 + survivalWave * 2;
+  survivalEnemiesRemaining = count;
+  addFloatingText(`⚠️ WAVE ${survivalWave} INCOMING! ⚠️`, player.x, player.y - 40, "#ff4444");
+
+  for (let i = 0; i < count; i++) {
+    const side = (i % 2 === 0) ? -1 : 1;
+    const spawnX = player.x + side * (350 + Math.random() * 300);
+    const clampX = Math.max(60, Math.min(WORLD_WIDTH - 60, spawnX));
+
+    if (survivalWave >= 5 && i === 0) {
+      enemies.push(createEnemy("boss", clampX, FLOOR_Y - 180));
+    } else if (i % 3 === 0 && survivalWave >= 2) {
+      enemies.push(createEnemy("drone", clampX, 380 + Math.random() * 80));
+    } else if (i % 4 === 0 && survivalWave >= 3) {
+      enemies.push(createEnemy("sniper", clampX, FLOOR_Y - 60));
+    } else if (i % 2 === 0) {
+      enemies.push(createEnemy("arachnid", clampX, FLOOR_Y - 48));
+    } else {
+      enemies.push(createEnemy("trooper", clampX, FLOOR_Y - 64));
+    }
+  }
 }
 
 function createEnemy(type, x, y) {
   if (type === "arachnid") {
     return {
       type: "arachnid",
-      name: "Bio-Mutant Stalker",
+      name: "BIO-ARACHNID",
       x, y,
-      vx: 2.2,
+      vx: 2.4,
       vy: 0,
-      width: 46,
-      height: 32,
+      width: 64,
+      height: 48,
       health: 80,
       maxHealth: 80,
       scoreValue: 120,
-      scrapValue: 12
+      scrapValue: 15
     };
   } else if (type === "trooper") {
     return {
       type: "trooper",
-      name: "Cyborg Heavy Trooper",
+      name: "CYBORG TROOPER",
       x, y,
       vx: 1.4,
       vy: 0,
-      width: 36,
-      height: 54,
+      width: 56,
+      height: 64,
       health: 160,
       maxHealth: 160,
       shootTimer: 1.8,
-      scoreValue: 220,
+      scoreValue: 200,
       scrapValue: 20
     };
   } else if (type === "drone") {
     return {
       type: "drone",
-      name: "Aerial Recon Gunship",
+      name: "GUNSHIP DRONE",
       x, y,
       vx: 2.0,
       vy: 0,
       baseY: y,
       time: Math.random() * 10,
-      width: 42,
-      height: 28,
+      width: 58,
+      height: 44,
       health: 70,
       maxHealth: 70,
       shootTimer: 2.0,
@@ -744,15 +789,15 @@ function createEnemy(type, x, y) {
   } else if (type === "sniper") {
     return {
       type: "sniper",
-      name: "Citadel Beam Sniper",
+      name: "CITADEL SNIPER",
       x, y,
       vx: 0,
       vy: 0,
-      width: 34,
-      height: 44,
+      width: 48,
+      height: 60,
       health: 90,
       maxHealth: 90,
-      chargeTimer: 2.5,
+      chargeTimer: 2.4,
       isAiming: false,
       scoreValue: 240,
       scrapValue: 25
@@ -760,19 +805,18 @@ function createEnemy(type, x, y) {
   } else if (type === "boss") {
     return {
       type: "boss",
-      name: "APEX CYBER-COLOSSUS",
+      name: "APEX MECH TITAN",
       x, y,
       vx: 1.2,
       vy: 0,
-      width: 150,
-      height: 190,
+      width: 200,
+      height: 180,
       health: 1800,
       maxHealth: 1800,
-      phase: 1,
       attackTimer: 2.2,
-      active: false,
+      active: true,
       scoreValue: 5000,
-      scrapValue: 200
+      scrapValue: 250
     };
   }
 }
@@ -805,7 +849,7 @@ function addFloatingText(text, x, y, color = "#fff") {
 }
 
 // --------------------------------------------------
-// UPDATE LOOP
+// UPDATE
 // --------------------------------------------------
 let lastTime = performance.now();
 
@@ -830,8 +874,8 @@ function update(dt) {
     p.y += p.vy;
     if (p.isShell) {
       p.vy += 22 * dt;
-      if (p.y >= 638) {
-        p.y = 638;
+      if (p.y >= FLOOR_Y - 2) {
+        p.y = FLOOR_Y - 2;
         p.vy = -p.vy * 0.4;
         p.vx *= 0.7;
       }
@@ -949,14 +993,16 @@ function update(dt) {
     player.frameIndex++;
   }
 
-  // Checkpoints
+  // Checkpoints Activation & Full Healing
   checkpoints.forEach(cp => {
-    if (Math.abs(player.x - cp.x) < 50 && Math.abs(player.y - cp.y) < 80) {
+    if (Math.abs(player.x - cp.x) < 65 && Math.abs(player.y - (cp.y - player.height)) < 40) {
       if (!cp.active) {
         cp.active = true;
         lastActiveCheckpoint = cp;
+        player.health = player.maxHealth;
+        player.shield = player.maxShield;
         playSound("pickup");
-        addFloatingText(`CHECKPOINT DISCOVERED: ${cp.name}`, cp.x, cp.y - 30, "#3fb950");
+        addFloatingText(`CHECKPOINT ACTIVATED! RESTORED TO 100% HP`, cp.x, cp.y - 85, "#3fb950");
         if (!discoveredZones.includes(cp.zone)) {
           discoveredZones.push(cp.zone);
           localStorage.setItem("john_discovered_zones", JSON.stringify(discoveredZones));
@@ -965,7 +1011,7 @@ function update(dt) {
     }
   });
 
-  // Zones
+  // Zone Detection
   ZONES.forEach(z => {
     if (player.x >= z.startX && player.x < z.endX) {
       if (currentZoneName !== z.name) {
@@ -1019,7 +1065,6 @@ function update(dt) {
     for (let j = enemies.length - 1; j >= 0; j--) {
       const e = enemies[j];
       if (b.x > e.x && b.x < e.x + e.width && b.y > e.y && b.y < e.y + e.height) {
-        if (e.type === "boss" && !e.active) e.active = true;
         e.health -= b.damage;
         playSound("hit");
 
@@ -1044,9 +1089,15 @@ function update(dt) {
           scrap += e.scrapValue;
           localStorage.setItem("john_scrap", scrap);
           addFloatingText(`+${e.scrapValue} SCRAP`, e.x + e.width / 2, e.y, "#ffd700");
+
+          if (currentGameMode === "SURVIVAL") {
+            survivalScore += e.scoreValue;
+            survivalEnemiesRemaining--;
+          }
+
           if (e.type === "boss") {
             if (audioFiles.bossMusic) audioFiles.bossMusic.pause();
-            gameState = "VICTORY";
+            if (currentGameMode === "OPEN_WORLD") gameState = "VICTORY";
           }
           enemies.splice(j, 1);
         }
@@ -1063,6 +1114,18 @@ function update(dt) {
         }
       }
     }
+  }
+
+  // Survival Mode Wave Progression
+  if (currentGameMode === "SURVIVAL" && enemies.length === 0) {
+    survivalWave++;
+    if (survivalWave > survivalHighScore) {
+      survivalHighScore = survivalWave;
+      localStorage.setItem("john_survival_high_wave", survivalHighScore);
+    }
+    scrap += 50;
+    localStorage.setItem("john_scrap", scrap);
+    spawnSurvivalWave();
   }
 
   // Enemy Bullets
@@ -1094,23 +1157,22 @@ function update(dt) {
     const dist = player.x - e.x;
 
     if (e.type === "arachnid") {
-      if (Math.abs(dist) < 360) {
+      if (Math.abs(dist) < 420) {
         e.vx = Math.sign(dist) * 3.4;
       }
       e.x += e.vx;
-      if (e.x < 1000 || e.x > 1980) e.vx = -e.vx;
     } else if (e.type === "trooper") {
       if (Math.abs(dist) > 220) {
         e.x += Math.sign(dist) * e.vx;
       }
       e.shootTimer -= dt;
-      if (e.shootTimer <= 0 && Math.abs(dist) < 480) {
-        e.shootTimer = 2.2;
+      if (e.shootTimer <= 0 && Math.abs(dist) < 520) {
+        e.shootTimer = 2.0;
         for (let b = 0; b < 3; b++) {
           setTimeout(() => {
             enemyBullets.push({
               x: e.x + (Math.sign(dist) === 1 ? e.width : 0),
-              y: e.y + 22,
+              y: e.y + 26,
               vx: Math.sign(dist) * 8.5,
               vy: 0,
               damage: 14
@@ -1122,11 +1184,10 @@ function update(dt) {
       e.time += dt * 2.2;
       e.x += e.vx;
       e.y = e.baseY + Math.sin(e.time) * 30;
-      if (e.x < 1000 || e.x > 3000) e.vx = -e.vx;
 
       e.shootTimer -= dt;
-      if (e.shootTimer <= 0 && Math.abs(dist) < 420) {
-        e.shootTimer = 2.5;
+      if (e.shootTimer <= 0 && Math.abs(dist) < 480) {
+        e.shootTimer = 2.4;
         const angle = Math.atan2((player.y + player.height / 2) - e.y, (player.x + player.width / 2) - e.x);
         enemyBullets.push({
           x: e.x + e.width / 2,
@@ -1137,11 +1198,11 @@ function update(dt) {
         });
       }
     } else if (e.type === "sniper") {
-      if (Math.abs(dist) < 650) {
+      if (Math.abs(dist) < 700) {
         e.isAiming = true;
         e.chargeTimer -= dt;
         if (e.chargeTimer <= 0) {
-          e.chargeTimer = 3.2;
+          e.chargeTimer = 3.0;
           enemyBullets.push({
             x: e.x,
             y: e.y + 16,
@@ -1153,9 +1214,9 @@ function update(dt) {
         }
       } else {
         e.isAiming = false;
-        e.chargeTimer = 3.2;
+        e.chargeTimer = 3.0;
       }
-    } else if (e.type === "boss" && e.active) {
+    } else if (e.type === "boss") {
       e.x += e.vx;
       if (e.x < 3300 || e.x + e.width > 4100) e.vx = -e.vx;
 
@@ -1187,14 +1248,14 @@ function update(dt) {
     }
   });
 
-  // Dynamic Camera Center
+  // Dynamic Camera Center (ensures ground is always in comfortable view)
   const targetCamX = player.x - canvas.width / 2;
-  const targetCamY = player.y - canvas.height / 2;
+  const targetCamY = player.y - canvas.height * 0.62;
   camera.x += (targetCamX - camera.x) * 0.1;
   camera.y += (targetCamY - camera.y) * 0.1;
 
   camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
-  camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, camera.y));
+  camera.y = Math.max(0, Math.min(Math.max(0, WORLD_HEIGHT - canvas.height), camera.y));
 }
 
 function applyDamageToPlayer(amount) {
@@ -1221,7 +1282,7 @@ function applyDamageToPlayer(amount) {
 }
 
 // --------------------------------------------------
-// RENDER ENGINE
+// RENDER ENGINE (ENHANCED ENEMY VISIBILITY & GROUND CHECKPOINTS)
 // --------------------------------------------------
 function render() {
   ctx.save();
@@ -1258,11 +1319,10 @@ function render() {
     return;
   }
 
-  // World Rendering with Camera Translation
+  // World Rendering with Camera
   ctx.save();
   ctx.translate(-camera.x, -camera.y);
 
-  // Parallax Cave & Sky Backdrop
   if (assets.caveBg.complete) {
     for (let bx = 0; bx < WORLD_WIDTH; bx += 800) {
       ctx.drawImage(assets.caveBg, bx, 0, 800, WORLD_HEIGHT);
@@ -1272,7 +1332,6 @@ function render() {
     ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
   }
 
-  // Clouds
   if (assets.clouds.complete) {
     const t = Date.now() * 0.02;
     for (let cx = 0; cx < WORLD_WIDTH; cx += 600) {
@@ -1280,7 +1339,6 @@ function render() {
     }
   }
 
-  // Trees in Jungle Zone
   if (assets.tree1.complete && assets.tree2.complete) {
     for (let tx = 1050; tx < 1950; tx += 180) {
       ctx.drawImage(assets.tree1, tx, 520, 90, 120);
@@ -1288,20 +1346,32 @@ function render() {
     }
   }
 
-  // Checkpoints
+  // Solid Checkpoints directly on FLOOR_Y
   checkpoints.forEach(cp => {
     ctx.save();
+    // Solid Steel Base at ground level
+    ctx.fillStyle = "#21262d";
+    ctx.fillRect(cp.x - 24, FLOOR_Y - 14, 48, 14);
+    ctx.strokeStyle = cp.active ? "#3fb950" : "#484f58";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cp.x - 24, FLOOR_Y - 14, 48, 14);
+
+    // Neon Vertical Energy Pillar
     ctx.fillStyle = cp.active ? "#3fb950" : "#8b949e";
-    ctx.fillRect(cp.x - 4, cp.y - 45, 8, 55);
+    ctx.fillRect(cp.x - 4, FLOOR_Y - 60, 8, 46);
+
+    // Floating Hologram Diamond
     const pulse = Math.sin(Date.now() * 0.008) * 4;
+    ctx.fillStyle = cp.active ? "#58a6ff" : "#8b949e";
     ctx.beginPath();
-    ctx.arc(cp.x, cp.y - 50 + pulse, cp.active ? 10 : 6, 0, Math.PI * 2);
+    ctx.arc(cp.x, FLOOR_Y - 70 + pulse, cp.active ? 10 : 6, 0, Math.PI * 2);
     ctx.fill();
 
+    // Checkpoint Text Badge
     ctx.fillStyle = cp.active ? "#3fb950" : "#c9d1d9";
     ctx.font = "bold 11px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText(cp.active ? "CHECKPOINT ACTIVE" : "DISCOVER BEACON", cp.x, cp.y - 64);
+    ctx.fillText(cp.active ? "CHECKPOINT ACTIVE (100% HEAL)" : "DISCOVER BEACON", cp.x, FLOOR_Y - 84);
     ctx.restore();
   });
 
@@ -1323,7 +1393,7 @@ function render() {
     }
   });
 
-  // Platforms & Ground
+  // Platforms
   worldPlatforms.forEach(p => {
     if (assets.platformTile.complete) {
       const tileW = 48;
@@ -1340,37 +1410,41 @@ function render() {
     ctx.strokeRect(p.x, p.y, p.w, p.h);
   });
 
-  // Enemies Rendering (Image sprite or high-detail pixel art fallback)
+  // HIGH VISIBILITY ENEMIES (Prominent size + glowing indicators + overhead name & health)
   enemies.forEach(e => {
     ctx.save();
+
+    // Render image or high-contrast procedural sprite
     if (e.type === "arachnid") {
       if (assets.enemyArachnid && assets.enemyArachnid.complete && assets.enemyArachnid.naturalWidth > 0) {
         ctx.drawImage(assets.enemyArachnid, e.x, e.y, e.width, e.height);
       } else {
+        // High visibility bright toxic green arachnid
         ctx.fillStyle = "#2ea043";
-        ctx.fillRect(e.x + 8, e.y + 6, e.width - 16, e.height - 12);
+        ctx.fillRect(e.x + 8, e.y + 10, e.width - 16, e.height - 18);
         ctx.fillStyle = "#ff7b72";
-        ctx.fillRect(e.vx > 0 ? e.x + e.width - 8 : e.x + 4, e.y + 8, 4, 4);
-        ctx.strokeStyle = "#238636";
+        ctx.fillRect(e.vx > 0 ? e.x + e.width - 12 : e.x + 6, e.y + 12, 6, 6);
+        ctx.strokeStyle = "#3fb950";
         ctx.lineWidth = 3;
-        const legBob = Math.sin(Date.now() * 0.02) * 5;
+        const legBob = Math.sin(Date.now() * 0.02) * 6;
         ctx.beginPath();
-        ctx.moveTo(e.x + 4, e.y + e.height - 4);
-        ctx.lineTo(e.x - 4, e.y + e.height + legBob);
-        ctx.moveTo(e.x + e.width - 4, e.y + e.height - 4);
-        ctx.lineTo(e.x + e.width + 4, e.y + e.height - legBob);
+        ctx.moveTo(e.x + 6, e.y + e.height - 6);
+        ctx.lineTo(e.x - 6, e.y + e.height + legBob);
+        ctx.moveTo(e.x + e.width - 6, e.y + e.height - 6);
+        ctx.lineTo(e.x + e.width + 6, e.y + e.height - legBob);
         ctx.stroke();
       }
     } else if (e.type === "trooper") {
       if (assets.enemyTrooper && assets.enemyTrooper.complete && assets.enemyTrooper.naturalWidth > 0) {
         ctx.drawImage(assets.enemyTrooper, e.x, e.y, e.width, e.height);
       } else {
+        // High visibility cyborg trooper with glowing visor & rifle
         ctx.fillStyle = "#30363d";
-        ctx.fillRect(e.x, e.y, e.width, e.height);
+        ctx.fillRect(e.x + 8, e.y, e.width - 16, e.height);
         ctx.fillStyle = "#f85149";
-        ctx.fillRect(e.x + 4, e.y + 8, e.width - 8, 6);
+        ctx.fillRect(e.x + 12, e.y + 10, e.width - 24, 8); // Glowing visor
         ctx.fillStyle = "#161b22";
-        ctx.fillRect(e.x - 6, e.y + 22, e.width + 12, 6);
+        ctx.fillRect(e.x - 8, e.y + 26, e.width + 16, 8); // Rifle
       }
     } else if (e.type === "drone") {
       if (assets.enemyDrone && assets.enemyDrone.complete && assets.enemyDrone.naturalWidth > 0) {
@@ -1378,29 +1452,29 @@ function render() {
       } else {
         ctx.fillStyle = "#6e7681";
         ctx.beginPath();
-        ctx.arc(e.x + e.width / 2, e.y + e.height / 2, 14, 0, Math.PI * 2);
+        ctx.arc(e.x + e.width / 2, e.y + e.height / 2, 18, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#58a6ff";
         ctx.beginPath();
-        ctx.arc(e.x + e.width / 2, e.y + e.height / 2, 6, 0, Math.PI * 2);
+        ctx.arc(e.x + e.width / 2, e.y + e.height / 2, 8, 0, Math.PI * 2);
         ctx.fill();
-        const bladeW = Math.sin(Date.now() * 0.05) * 16;
+        const bladeW = Math.sin(Date.now() * 0.05) * 20;
         ctx.strokeStyle = "#8b949e";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(e.x + e.width / 2 - bladeW, e.y - 2);
-        ctx.lineTo(e.x + e.width / 2 + bladeW, e.y - 2);
+        ctx.moveTo(e.x + e.width / 2 - bladeW, e.y - 4);
+        ctx.lineTo(e.x + e.width / 2 + bladeW, e.y - 4);
         ctx.stroke();
       }
     } else if (e.type === "sniper") {
       ctx.fillStyle = "#1f242c";
-      ctx.fillRect(e.x, e.y, e.width, e.height);
+      ctx.fillRect(e.x + 6, e.y, e.width - 12, e.height);
       ctx.fillStyle = "#a371f7";
-      ctx.fillRect(e.x + 6, e.y + 6, e.width - 12, 6);
+      ctx.fillRect(e.x + 10, e.y + 8, e.width - 20, 8);
 
       if (e.isAiming) {
-        ctx.strokeStyle = "rgba(248, 81, 73, 0.6)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(248, 81, 73, 0.75)";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(e.x, e.y + 16);
         ctx.lineTo(player.x + player.width / 2, player.y + player.height / 2);
@@ -1416,7 +1490,7 @@ function render() {
         ctx.lineWidth = 4;
         ctx.strokeRect(e.x, e.y, e.width, e.height);
 
-        const pulse = 12 + Math.sin(Date.now() * 0.008) * 4;
+        const pulse = 14 + Math.sin(Date.now() * 0.008) * 4;
         ctx.fillStyle = "#ff7b72";
         ctx.beginPath();
         ctx.arc(e.x + e.width / 2, e.y + 70, pulse, 0, Math.PI * 2);
@@ -1428,21 +1502,30 @@ function render() {
 
       // Boss Health Bar
       const bW = e.width;
-      ctx.fillStyle = "rgba(0,0,0,0.8)";
-      ctx.fillRect(e.x, e.y - 22, bW, 10);
+      ctx.fillStyle = "rgba(0,0,0,0.85)";
+      ctx.fillRect(e.x, e.y - 24, bW, 12);
       ctx.fillStyle = "#f85149";
-      ctx.fillRect(e.x, e.y - 22, bW * Math.max(0, e.health / e.maxHealth), 10);
+      ctx.fillRect(e.x, e.y - 24, bW * Math.max(0, e.health / e.maxHealth), 12);
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 1;
-      ctx.strokeRect(e.x, e.y - 22, bW, 10);
+      ctx.strokeRect(e.x, e.y - 24, bW, 12);
     }
 
-    if (e.type !== "boss" && e.health < e.maxHealth) {
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(e.x, e.y - 8, e.width, 4);
+    // High Visibility Overhead Enemy Badge & Health
+    if (e.type !== "boss") {
+      ctx.fillStyle = "#f85149";
+      ctx.font = "bold 9px Courier New";
+      ctx.textAlign = "center";
+      ctx.fillText(e.name, e.x + e.width / 2, e.y - 12);
+
+      // Health bar
+      const bw = e.width;
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(e.x, e.y - 8, bw, 4);
       ctx.fillStyle = "#3fb950";
-      ctx.fillRect(e.x, e.y - 8, e.width * (e.health / e.maxHealth), 4);
+      ctx.fillRect(e.x, e.y - 8, bw * (e.health / e.maxHealth), 4);
     }
+
     ctx.restore();
   });
 
@@ -1584,20 +1667,26 @@ function renderHUD() {
   ctx.font = "bold 13px Courier New";
   ctx.fillText(wp.name.toUpperCase(), 165, 22);
   ctx.fillStyle = player.reloading ? "#f0883e" : wp.ammo <= 3 ? "#f85149" : "#fff";
-  ctx.fillText(player.reloading ? "RELOADING..." : `AMMO: ${wp.ammo}/${wp.maxAmmo}`, 165, 38);
+  ctx.fillText(player.reloading ? "RELOADING..." : `AMMO: ${wp.ammo}/${wp.maxAmmo} [SPACE]`, 165, 38);
 
   // Scrap
   ctx.fillStyle = "#ffd700";
   ctx.fillText(`⚙️ SCRAP: ${scrap}`, 370, 26);
 
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "11px Courier New";
-  ctx.fillText(`ZONE: ${currentZoneName}`, 370, 40);
+  if (currentGameMode === "SURVIVAL") {
+    ctx.fillStyle = "#f85149";
+    ctx.font = "bold 12px Courier New";
+    ctx.fillText(`⚔️ SURVIVAL WAVE: ${survivalWave} | HOSTILES: ${enemies.length}`, 370, 42);
+  } else {
+    ctx.fillStyle = "#8b949e";
+    ctx.font = "11px Courier New";
+    ctx.fillText(`ZONE: ${currentZoneName}`, 370, 40);
+  }
 
   // Dash
   const dashReady = player.dashCooldown <= 0;
   ctx.fillStyle = dashReady ? "#a371f7" : "#484f58";
-  ctx.fillText(dashReady ? "⚡ DASH [SHIFT]" : `⚡ DASH: ${(player.dashCooldown).toFixed(1)}s`, 550, 26);
+  ctx.fillText(dashReady ? "⚡ DASH [SHIFT]" : `⚡ DASH: ${(player.dashCooldown).toFixed(1)}s`, 580, 26);
 
   // Minimap (Top Right)
   const mapW = 140;
@@ -1629,7 +1718,7 @@ function renderHUD() {
 }
 
 // --------------------------------------------------
-// MAIN MENU
+// MAIN MENU (WITH OPEN WORLD & ENDLESS SURVIVAL MODES)
 // --------------------------------------------------
 function renderMainMenu() {
   ctx.fillStyle = "#090d16";
@@ -1639,40 +1728,41 @@ function renderMainMenu() {
     ctx.drawImage(assets.titleBg, 0, 0, canvas.width, canvas.height);
   }
 
-  ctx.fillStyle = "rgba(10, 14, 22, 0.78)";
+  ctx.fillStyle = "rgba(10, 14, 22, 0.82)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (assets.titleLogo.complete) {
-    ctx.drawImage(assets.titleLogo, canvas.width / 2 - 140, 30, 280, 146);
+    ctx.drawImage(assets.titleLogo, canvas.width / 2 - 140, 20, 280, 140);
   } else {
     ctx.fillStyle = "#58a6ff";
-    ctx.font = "bold 36px Courier New";
+    ctx.font = "bold 34px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText("JOHN: ROGUE COMMANDO", canvas.width / 2, 100);
+    ctx.fillText("JOHN: ROGUE COMMANDO", canvas.width / 2, 80);
   }
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#c9d1d9";
-  ctx.font = "14px Courier New";
-  ctx.fillText("FULLSCREEN OPEN-WORLD CYBER INFILTRATION SHOOTER", canvas.width / 2, 190);
+  ctx.font = "13px Courier New";
+  ctx.fillText("SELECT MISSION MODE & INFILTRATE", canvas.width / 2, 175);
 
   const menuItems = [
-    { text: "▶ ENTER OPEN WORLD", y: 240 },
-    { text: "⚙ CYBER-ARMORY (UPGRADES & WEAPONS)", y: 290 },
-    { text: "🗺 WORLD MAP & FAST TRAVEL", y: 340 },
-    { text: "📖 MISSION INTEL & LORE", y: 390 },
-    { text: "⚙ SETTINGS & CONTROLS", y: 440 }
+    { text: "▶ 1. OPEN WORLD INFILTRATION (4 BIOMES)", y: 220, color: "#58a6ff" },
+    { text: "⚡ 2. ENDLESS HORDE SURVIVAL (ARENA COMBAT)", y: 270, color: "#f85149" },
+    { text: "⚙ 3. CYBER-ARMORY (UPGRADES & WEAPONS)", y: 320, color: "#ffd700" },
+    { text: "🗺 4. WORLD MAP & FAST TRAVEL", y: 370, color: "#3fb950" },
+    { text: "📖 5. MISSION INTEL & LORE", y: 420, color: "#a371f7" },
+    { text: "⚙ 6. SETTINGS & CONTROLS", y: 470, color: "#8b949e" }
   ];
 
-  menuItems.forEach((item, idx) => {
-    ctx.fillStyle = "rgba(33, 38, 45, 0.85)";
-    ctx.fillRect(canvas.width / 2 - 220, item.y - 20, 440, 36);
+  menuItems.forEach((item) => {
+    ctx.fillStyle = "rgba(33, 38, 45, 0.9)";
+    ctx.fillRect(canvas.width / 2 - 240, item.y - 18, 480, 36);
     ctx.strokeStyle = "#30363d";
-    ctx.strokeRect(canvas.width / 2 - 220, item.y - 20, 440, 36);
+    ctx.strokeRect(canvas.width / 2 - 240, item.y - 18, 480, 36);
 
-    ctx.fillStyle = idx === 0 ? "#58a6ff" : "#e6edf3";
-    ctx.font = "bold 15px Courier New";
-    ctx.fillText(item.text, canvas.width / 2, item.y + 4);
+    ctx.fillStyle = item.color;
+    ctx.font = "bold 14px Courier New";
+    ctx.fillText(item.text, canvas.width / 2, item.y + 5);
   });
 
   ctx.textAlign = "left";
@@ -1680,21 +1770,29 @@ function renderMainMenu() {
 
 function handleMenuClick(mx, my) {
   const cx = canvas.width / 2;
-  if (mx > cx - 220 && mx < cx + 220) {
-    if (my > 220 && my < 256) {
-      if (enemies.length === 0) initWorldEnemies();
+  if (mx > cx - 240 && mx < cx + 240) {
+    if (my > 202 && my < 238) {
+      // Open World Mode
+      currentGameMode = "OPEN_WORLD";
+      initWorldEnemies();
       gameState = "PLAYING";
       playSound("select");
-    } else if (my > 270 && my < 306) {
+    } else if (my > 252 && my < 288) {
+      // Endless Survival Mode
+      currentGameMode = "SURVIVAL";
+      startSurvivalMode();
+      gameState = "PLAYING";
+      playSound("select");
+    } else if (my > 302 && my < 338) {
       gameState = "ARMORY";
       playSound("select");
-    } else if (my > 320 && my < 356) {
+    } else if (my > 352 && my < 388) {
       gameState = "WORLD_MAP";
       playSound("select");
-    } else if (my > 370 && my < 406) {
+    } else if (my > 402 && my < 438) {
       gameState = "LORE";
       playSound("select");
-    } else if (my > 420 && my < 456) {
+    } else if (my > 452 && my < 488) {
       gameState = "SETTINGS";
       playSound("select");
     }
@@ -1849,10 +1947,11 @@ function handleWorldMapClick(mx, my) {
       const cp = checkpoints[i];
       if (cp && cp.active) {
         player.x = cp.x;
-        player.y = cp.y - 40;
+        player.y = cp.y - player.height;
         player.vx = 0;
         player.vy = 0;
-        if (enemies.length === 0) initWorldEnemies();
+        currentGameMode = "OPEN_WORLD";
+        initWorldEnemies();
         gameState = "PLAYING";
         playSound("pickup");
       }
@@ -1861,7 +1960,7 @@ function handleWorldMapClick(mx, my) {
 }
 
 // --------------------------------------------------
-// LORE & SETTINGS SCREENS
+// LORE & SETTINGS
 // --------------------------------------------------
 function renderLoreScreen() {
   ctx.fillStyle = "#0d1117";
@@ -1879,10 +1978,12 @@ function renderLoreScreen() {
   const lines = [
     "OPERATIVE: Commander John",
     "STATUS: Active Infiltration",
-    "OBJECTIVE: Penetrate the Apex Cyber-Citadel and neutralize the Titan Mech.",
+    "MODES:",
+    "• Open World Campaign: Infiltrate all 4 biomes, discover checkpoints, and destroy the Citadel.",
+    "• Endless Horde Survival: Battle continuous waves of aggressive hostiles in the arena.",
     "",
     "--- CONTROLS ---",
-    "• SPACE or LEFT CLICK: Fire Weapon",
+    "• SPACE / Left Click: Fire Weapon",
     "• W / ArrowUp: Jump",
     "• A / D: Move Left / Right",
     "• S / ArrowDown: Crouch",
@@ -1891,15 +1992,15 @@ function renderLoreScreen() {
     "• R: Tactical Reload",
     "",
     "--- THREAT INTEL ---",
-    "• Mutant Arachnids: Fast-moving biological horrors inhabiting the Toxic Jungle.",
-    "• Heavy Troopers: Mechanized infantry equipped with burst rifles.",
-    "• Gunship Drones: Flying scouts with twin plasma pulses.",
-    "• Beam Snipers: Citadel guardians charging lethal rail slugs with warning laser sights.",
-    "• The Apex Colossus: Fortress boss armed with missile barrages and laser sweeps."
+    "• Mutant Arachnids: Fast-moving biological horrors with leap strikes.",
+    "• Heavy Troopers: Mechanized infantry with 3-round burst plasma rifles.",
+    "• Gunship Drones: Flying scouts with tracking plasma bolts.",
+    "• Citadel Snipers: Long-range guardians with warning targeting lasers.",
+    "• Apex Mech Titan: Citadel boss with missile barrages and plasma waves."
   ];
 
   lines.forEach((line, i) => {
-    ctx.fillText(line, canvas.width / 2 - 320, 95 + i * 22);
+    ctx.fillText(line, canvas.width / 2 - 320, 90 + i * 21);
   });
 
   renderBackButton();
@@ -1983,7 +2084,11 @@ function renderGameOverOverlay() {
 
   ctx.fillStyle = "#c9d1d9";
   ctx.font = "16px Courier New";
-  ctx.fillText("Respawn at latest active checkpoint?", canvas.width / 2, canvas.height / 2 + 10);
+  if (currentGameMode === "SURVIVAL") {
+    ctx.fillText(`Survived to Wave ${survivalWave} | Score: ${survivalScore}`, canvas.width / 2, canvas.height / 2 + 10);
+  } else {
+    ctx.fillText("Respawn at latest active checkpoint beacon?", canvas.width / 2, canvas.height / 2 + 10);
+  }
 
   ctx.fillStyle = "#3fb950";
   ctx.font = "bold 18px Courier New";
@@ -2018,10 +2123,14 @@ window.addEventListener("click", () => {
   if (gameState === "GAMEOVER") {
     player.health = player.maxHealth;
     player.shield = player.maxShield;
-    player.x = lastActiveCheckpoint.x;
-    player.y = lastActiveCheckpoint.y - 40;
-    player.vx = 0;
-    player.vy = 0;
+    if (currentGameMode === "SURVIVAL") {
+      startSurvivalMode();
+    } else {
+      player.x = lastActiveCheckpoint.x;
+      player.y = lastActiveCheckpoint.y - player.height;
+      player.vx = 0;
+      player.vy = 0;
+    }
     gameState = "PLAYING";
   } else if (gameState === "VICTORY") {
     gameState = "MAIN_MENU";
