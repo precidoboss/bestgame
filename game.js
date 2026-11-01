@@ -1413,6 +1413,9 @@ function render() {
   // HIGH VISIBILITY ENEMIES (Prominent size + glowing indicators + overhead name & health)
   enemies.forEach(e => {
     ctx.save();
+    // Bright outline glow so enemies stand out from every biome background
+    ctx.shadowColor = e.type === "boss" ? "#ff3b3b" : "#ffd33d";
+    ctx.shadowBlur = e.type === "boss" ? 24 : 12;
 
     // Render image or high-contrast procedural sprite
     if (e.type === "arachnid") {
@@ -1420,11 +1423,11 @@ function render() {
         ctx.drawImage(assets.enemyArachnid, e.x, e.y, e.width, e.height);
       } else {
         // High visibility bright toxic green arachnid
-        ctx.fillStyle = "#2ea043";
+        ctx.fillStyle = "#56d364";
         ctx.fillRect(e.x + 8, e.y + 10, e.width - 16, e.height - 18);
         ctx.fillStyle = "#ff7b72";
         ctx.fillRect(e.vx > 0 ? e.x + e.width - 12 : e.x + 6, e.y + 12, 6, 6);
-        ctx.strokeStyle = "#3fb950";
+        ctx.strokeStyle = "#7ee787";
         ctx.lineWidth = 3;
         const legBob = Math.sin(Date.now() * 0.02) * 6;
         ctx.beginPath();
@@ -1439,18 +1442,18 @@ function render() {
         ctx.drawImage(assets.enemyTrooper, e.x, e.y, e.width, e.height);
       } else {
         // High visibility cyborg trooper with glowing visor & rifle
-        ctx.fillStyle = "#30363d";
+        ctx.fillStyle = "#c9d1d9";
         ctx.fillRect(e.x + 8, e.y, e.width - 16, e.height);
         ctx.fillStyle = "#f85149";
         ctx.fillRect(e.x + 12, e.y + 10, e.width - 24, 8); // Glowing visor
-        ctx.fillStyle = "#161b22";
+        ctx.fillStyle = "#ffa657";
         ctx.fillRect(e.x - 8, e.y + 26, e.width + 16, 8); // Rifle
       }
     } else if (e.type === "drone") {
       if (assets.enemyDrone && assets.enemyDrone.complete && assets.enemyDrone.naturalWidth > 0) {
         ctx.drawImage(assets.enemyDrone, e.x, e.y, e.width, e.height);
       } else {
-        ctx.fillStyle = "#6e7681";
+        ctx.fillStyle = "#e6edf3";
         ctx.beginPath();
         ctx.arc(e.x + e.width / 2, e.y + e.height / 2, 18, 0, Math.PI * 2);
         ctx.fill();
@@ -1467,9 +1470,12 @@ function render() {
         ctx.stroke();
       }
     } else if (e.type === "sniper") {
-      ctx.fillStyle = "#1f242c";
+      ctx.fillStyle = "#d2a8ff";
       ctx.fillRect(e.x + 6, e.y, e.width - 12, e.height);
-      ctx.fillStyle = "#a371f7";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(e.x + 6, e.y, e.width - 12, e.height);
+      ctx.fillStyle = "#8957e5";
       ctx.fillRect(e.x + 10, e.y + 8, e.width - 20, 8);
 
       if (e.isAiming) {
@@ -1484,9 +1490,9 @@ function render() {
       if (assets.bossMech && assets.bossMech.complete && assets.bossMech.naturalWidth > 0) {
         ctx.drawImage(assets.bossMech, e.x, e.y, e.width, e.height);
       } else {
-        ctx.fillStyle = "#161b22";
+        ctx.fillStyle = "#5a1e1e";
         ctx.fillRect(e.x, e.y, e.width, e.height);
-        ctx.strokeStyle = "#f85149";
+        ctx.strokeStyle = "#ff7b72";
         ctx.lineWidth = 4;
         ctx.strokeRect(e.x, e.y, e.width, e.height);
 
