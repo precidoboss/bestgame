@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>JOHN: ROGUE COMMANDO - Open World Cyber Shooter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JOHN: ROGUE COMMANDO - Fullscreen Open World</title>
   <style>
     * {
       box-sizing: border-box;
@@ -11,47 +11,45 @@
       padding: 0;
       user-select: none;
       -webkit-user-select: none;
+      touch-action: none;
     }
 
-    body {
-      background: radial-gradient(circle at center, #0f141f 0%, #05070a 100%);
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
       color: #e6edf3;
       font-family: 'Courier New', Courier, monospace;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow-x: hidden;
-      padding: 10px;
+      position: fixed;
+      top: 0;
+      left: 0;
     }
 
-    .game-container {
-      position: relative;
-      background: #000;
-      border: 3px solid #30363d;
-      border-radius: 10px;
-      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.9), 0 0 35px rgba(88, 166, 255, 0.2);
-      overflow: hidden;
-      max-width: 100%;
-    }
-
-    canvas {
+    /* Edge-to-edge Fullscreen Canvas */
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       display: block;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      background: #0d1117;
+      background: #090d16;
       cursor: crosshair;
+      z-index: 1;
     }
 
-    /* CRT Scanline & Color Aberration Effect */
+    /* Seamless CRT Scanline Overlay */
     .crt-overlay {
       pointer-events: none;
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
+      z-index: 5;
       background: linear-gradient(
         rgba(18, 16, 16, 0) 50%, 
         rgba(0, 0, 0, 0.28) 50%
@@ -59,10 +57,10 @@
         90deg,
         rgba(255, 0, 0, 0.03),
         rgba(0, 255, 0, 0.01),
-        rgba(0, 0, 255, 0.03)
+        rgba(0, 255, 0, 0.03)
       );
       background-size: 100% 4px, 6px 100%;
-      opacity: 0.65;
+      opacity: 0.6;
       transition: opacity 0.3s;
     }
 
@@ -70,29 +68,54 @@
       display: none;
     }
 
-    /* Control Dashboard & Status Bar */
-    .dashboard {
-      width: 100%;
-      max-width: 860px;
-      margin-top: 10px;
+    /* Floating Top HUD Bar */
+    .top-controls-bar {
+      position: absolute;
+      top: 6px;
+      right: 16px;
+      z-index: 10;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-      background: rgba(18, 22, 30, 0.9);
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 12px;
-      color: #8b949e;
+      gap: 8px;
     }
 
-    .controls-panel {
+    button.hud-btn {
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      backdrop-filter: blur(8px);
+      transition: all 0.15s ease;
+    }
+
+    button.hud-btn:hover {
+      background: rgba(48, 54, 61, 0.95);
+      border-color: #58a6ff;
+      color: #fff;
+    }
+
+    /* Bottom Quick Controls Helper */
+    .controls-pill {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(13, 17, 23, 0.75);
+      border: 1px solid #30363d;
+      backdrop-filter: blur(8px);
+      padding: 4px 16px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: #8b949e;
       display: flex;
       gap: 12px;
-      flex-wrap: wrap;
       align-items: center;
+      pointer-events: none;
     }
 
     .badge {
@@ -100,106 +123,90 @@
       background: #21262d;
       border: 1px solid #484f58;
       color: #58a6ff;
-      padding: 2px 7px;
+      padding: 1px 6px;
       border-radius: 4px;
       font-weight: bold;
     }
 
-    .btn-group {
-      display: flex;
-      gap: 8px;
-    }
-
-    button.ui-btn {
-      background: #21262d;
-      border: 1px solid #30363d;
-      color: #c9d1d9;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 12px;
-      font-weight: 600;
-      transition: all 0.15s ease;
-    }
-
-    button.ui-btn:hover {
-      background: #30363d;
-      border-color: #8b949e;
-      color: #fff;
-    }
-
-    button.ui-btn:active {
-      transform: scale(0.96);
-    }
-
-    /* Mobile virtual touch controls */
+    /* Mobile Virtual Touch Controls */
     .mobile-controls {
       display: none;
-      width: 100%;
-      max-width: 860px;
-      margin-top: 10px;
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100vw;
+      padding: 0 20px;
+      z-index: 15;
       justify-content: space-between;
       touch-action: none;
+      pointer-events: none;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 900px) {
       .mobile-controls {
         display: flex;
+      }
+      .controls-pill {
+        display: none;
       }
     }
 
     .dpad, .action-btns {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
+      pointer-events: auto;
     }
 
     .touch-btn {
-      width: 54px;
-      height: 54px;
+      width: 58px;
+      height: 58px;
       background: rgba(33, 38, 45, 0.85);
       border: 2px solid #58a6ff;
       border-radius: 50%;
       color: white;
-      font-size: 17px;
+      font-size: 18px;
       font-weight: bold;
       display: flex;
       align-items: center;
       justify-content: center;
       user-select: none;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     }
 
     .touch-btn:active {
-      background: rgba(88, 166, 255, 0.6);
+      background: rgba(88, 166, 255, 0.7);
+      transform: scale(0.95);
     }
   </style>
 </head>
 <body>
 
-  <div class="game-container">
-    <canvas id="gameCanvas" width="860" height="500"></canvas>
-    <div id="crtOverlay" class="crt-overlay"></div>
+  <!-- Fullscreen Canvas -->
+  <canvas id="gameCanvas"></canvas>
+  <div id="crtOverlay" class="crt-overlay"></div>
+
+  <!-- Top Action Bar -->
+  <div class="top-controls-bar">
+    <button class="hud-btn" id="btnSound">🔊 Sound</button>
+    <button class="hud-btn" id="btnCrt">📺 CRT</button>
+    <button class="hud-btn" id="btnFullscreen">⛶ Fullscreen</button>
   </div>
 
-  <div class="dashboard">
-    <div class="controls-panel">
-      <span><span class="badge">A/D</span> Move</span>
-      <span><span class="badge">W</span> Jump</span>
-      <span><span class="badge">S</span> Crouch</span>
-      <span><span class="badge">SHIFT</span> Dash</span>
-      <span><span class="badge">J/Click</span> Shoot</span>
-      <span><span class="badge">Q/E</span> Switch Weapon</span>
-      <span><span class="badge">R</span> Reload</span>
-      <span><span class="badge">M/ESC</span> Menu</span>
-    </div>
-    <div class="btn-group">
-      <button class="ui-btn" id="btnSound">🔊 Sound: ON</button>
-      <button class="ui-btn" id="btnCrt">📺 CRT: ON</button>
-      <button class="ui-btn" id="btnFullscreen">⛶ Fullscreen</button>
-    </div>
+  <!-- Bottom Floating Info Helper -->
+  <div class="controls-pill">
+    <span><span class="badge">A / D</span> Move</span>
+    <span><span class="badge">W</span> Jump</span>
+    <span><span class="badge">SPACE / CLICK</span> Shoot</span>
+    <span><span class="badge">S</span> Crouch</span>
+    <span><span class="badge">SHIFT</span> Dash</span>
+    <span><span class="badge">Q / E</span> Switch Weapon</span>
+    <span><span class="badge">R</span> Reload</span>
+    <span><span class="badge">M / ESC</span> Menu</span>
   </div>
 
+  <!-- Mobile Touch Layout -->
   <div class="mobile-controls">
     <div class="dpad">
       <div class="touch-btn" id="touchLeft">◀</div>
@@ -211,7 +218,7 @@
       <div class="touch-btn" id="touchSwitch" style="border-color:#388bfd;">⇄</div>
       <div class="touch-btn" id="touchJump" style="border-color:#3fb950;">▲</div>
       <div class="touch-btn" id="touchReload" style="border-color:#f0883e;">⟳</div>
-      <div class="touch-btn" id="touchShoot" style="border-color:#f85149; background:rgba(248,81,73,0.3);">💥</div>
+      <div class="touch-btn" id="touchShoot" style="border-color:#f85149; background:rgba(248,81,73,0.35); width:66px; height:66px;">💥</div>
     </div>
   </div>
 
